@@ -1,3 +1,9 @@
+# Stuff to ignore specifically for this code
+Data/
+Calibration/
+obsolete/
+Analysis/
+
 # Mac/OSX
 .DS_Store
 

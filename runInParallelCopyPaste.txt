@@ -1,0 +1,5 @@
+start python probConditioning1.py
+start python displayPerfoLicks.py
+
+
+(you have to enter each line one after the other)
