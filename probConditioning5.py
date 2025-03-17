@@ -21,6 +21,10 @@ Created on Wed Sep 22 16:51:13 2021
 # The way lick rasters are produced and saved is more stable. Uses a fixed sampling rate (200 Hz)
 # Added option AN '00' for testing the script without an arduino connected. Will give random lick
 
+# V5 March 2025
+# Main improvements:
+# Display of results is done within the same script. The user does not need to start a separate command for displaying results.
+
 # Imports
 import os
 # import socket
@@ -29,10 +33,21 @@ import sys
 import numpy as np
 import simpleaudio as sa
 import time
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import datetime
 # import scipy.io as io
 import json
+
+# %% To change all graphs
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+matplotlib.rcParams['axes.spines.right'] = False
+matplotlib.rcParams['axes.spines.top'] = False
+matplotlib.rcParams['axes.linewidth'] = 0.5
+matplotlib.rcParams['ytick.major.width'] = 0.5
+matplotlib.rcParams['xtick.major.width'] = 0.5
+plt.close('all')
 
 # If MAC
 # os.system('clear')
@@ -193,6 +208,21 @@ f.close()
 f = open('Data'+os.path.sep+an+os.path.sep+saveName+'_trialMTX.csv',"w")
 f.close()
 
+#%% Initialize figure
+
+plt.style.use('dark_background')
+
+fig = plt.figure()
+ax0 = fig.add_subplot(2,2,1) #Plot anticipatory lick rate
+ax1 = []
+ax1.append(fig.add_subplot(2,4,5)) # Plot raster lick rate
+ax1.append(fig.add_subplot(2,4,6)) # Plot raster lick rate
+ax1.append(fig.add_subplot(2,4,7)) # Plot raster lick rate
+ax1.append(fig.add_subplot(2,4,8)) # Plot raster lick rate
+ax2 = fig.add_subplot(2,2,2) # Plot raster lick rate
+fig.tight_layout()
+
+#%%
 # RUN TRIALS ====================================================================
 AUTOSTOP = False
 t0 = time.perf_counter()
@@ -338,6 +368,11 @@ try:
         np.savetxt(f,trInfos4saveMTX.reshape(1, trInfos4saveMTX.shape[0]),fmt='%2.3f',delimiter = ',')
         # f.write('\n')
         f.close()
+        
+        # ------- PLOT RESULTS
+        
+        
+        #
         
         # End of trial, increment N ========
         # Display number of reward thus far

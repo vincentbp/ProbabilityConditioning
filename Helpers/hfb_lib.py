@@ -21,7 +21,7 @@ import serial
 import sys
 import json
 
-import vbp
+import Helpers.vbp as vbp
 
 # This function is to set the system to the correct working directory. It returns the directory name as a string or -1
 def setUpDir():

@@ -9,7 +9,7 @@ Created on Thu Jan 27 17:25:12 2022
 import sys
 import os
 import json
-import hfb_lib as hfb
+import Helpers.hfb_lib as hfb
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QLineEdit
 from PyQt5.QtWidgets import QPushButton, QMessageBox
@@ -26,7 +26,7 @@ params = {
     
     # N s
     "nTrials": 1000,
-    "amountReward": 10, # In uL. Run calibration 
+    "amountReward": 5, # In uL. Run calibration 
     "fractEachTone": [0.5, 0, 0.5, 0], # Fraction of each tone presentation + fraction reward no tone position 4. Warning sum(fractEachTone) should be 1
     "probRew": [0, 0, 1, 1],
     "probPun": [0, 0, 0, 0],
@@ -36,7 +36,7 @@ params = {
     "durConsumption": 4, #Time after reward delivery
     "durPreReinf": 1.5, # Includes sound duration
     "durTotal": 1800, # Duration in sec of the whole session
-    "durSound": 1, # in sec
+    "durSound": 1.5, # in sec
    
     # # Laser
     # "laser": [0, 10, 0] ,# 1-fractLaser trials; 2-ntrial baseline (at the beginning of a session); 3- Type 0 = Arch/Jaws; 1=ChR2; 2=Arch during reinforcement
