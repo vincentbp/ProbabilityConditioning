@@ -37,7 +37,7 @@ import matplotlib.pyplot as plt
 import datetime
 # import scipy.io as io
 import json
-
+import pandas as pd
 # %% To change all graphs
 import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -182,6 +182,14 @@ respMTX = np.zeros((nTrials,3))*np.nan
 # Randomize trials and store them in trialTypeMTX
 trialTypeMTX,trialTypeMTXHeader = hfb.randTrialsPROB(nTrials,fractEachTone,probRew,probPun,durITI)
 
+# Initialize trial matrix
+trmtx = pd.DataFrame(np.ones((nTrials,9))*np.nan,columns=['tone_id','reward','dur_iti','t_start','t_tone','t_reinf','bl_lickrate','anticip_lickrate','conso_lickrate'])
+
+# Initialize lick raster
+lickSR = 200
+tR = np.arange(-durBL,durPreReinforcement+durPost,1/lickSR)
+lick_ras = pd.DataFrame(np.ones((nTrials,len(tR))) * np.nan,columns=tR)
+
 # Remove punishment on 10
 nTrialRemovePunishment = 10
 trialTypeMTX[np.where(trialTypeMTX[:nTrialRemovePunishment,2] < 0)[0],2] = 0
@@ -203,24 +211,69 @@ f.write(json) # write json object to file
 f.close() # close file
 
 # Initialize files (lick raster and trial matrix) for saving results during behavior <--
-f = open('Data'+os.path.sep+an+os.path.sep+saveName+'_lickRaster.csv',"w")
-f.close()
-f = open('Data'+os.path.sep+an+os.path.sep+saveName+'_trialMTX.csv',"w")
-f.close()
+lick_ras.to_csv('Data'+os.path.sep+an+os.path.sep+saveName+'_lickRaster.csv')
+trmtx.to_csv('Data'+os.path.sep+an+os.path.sep+saveName+'_trialMTX.csv')
 
 #%% Initialize figure
 
+# Set up
 plt.style.use('dark_background')
+ls_col = ['aqua', 'slateblue', 'darkorange', 'deeppink']
+fig = plt.figure(figsize=(10,6))
 
-fig = plt.figure()
-ax0 = fig.add_subplot(2,2,1) #Plot anticipatory lick rate
+#Plot anticipatory lick rate
+ax0 = fig.add_subplot(2,2,1) 
+a = ax0
+avg_anticip = []
+for i in range(4):
+    # l, = a.plot([],[],'o',color=ls_col[i])
+    l, = a.plot([],[],'o',color=ls_col[i])
+    avg_anticip.append(l)
+a.set_ylim([-0.2,10])
+a.set_ylabel('Lick rate (lick/s)')
+a.set_xlabel('Trial #')
+a.set_title('Anticipatory licking')
+
+# Plot session average lick/s
+ax2 = fig.add_subplot(2,2,2) # Plot raster lick rate
+a = ax2
+sessavg_lick = []
+for i in range(4):
+    l, = a.plot([],[],color = ls_col[i])
+    sessavg_lick.append(l)
+a.vlines(0,*[0,15],color = 'r')
+a.vlines(durPreReinforcement,*[0,15],color = 'b')
+a.vlines(durSound,*[0,15],color = 'w',ls=':')
+a.set_xticks([0,durPreReinforcement])
+a.set_xlabel('Time from CS (s)')
+a.set_ylabel('Lick rate (lick/s)')
+a.set_title('Session average')
+a.set_xlim([-durBL,durPreReinforcement+durPost])
+a.set_ylim([0,15])
+
+# Rasters lick
 ax1 = []
 ax1.append(fig.add_subplot(2,4,5)) # Plot raster lick rate
 ax1.append(fig.add_subplot(2,4,6)) # Plot raster lick rate
 ax1.append(fig.add_subplot(2,4,7)) # Plot raster lick rate
 ax1.append(fig.add_subplot(2,4,8)) # Plot raster lick rate
-ax2 = fig.add_subplot(2,2,2) # Plot raster lick rate
+lickrasplot = []
+for i in range(4):
+    a = ax1[i]
+    a.vlines(0,*[-0.5,nTrials],color = 'r',lw=0.5)
+    a.vlines(durPreReinforcement,*[-0.5,nTrials],color = 'b',lw=0.5)
+    e = a.scatter(0,0,marker='|',color = ls_col[i],linewidths=0.5)
+    lickrasplot.append(e)
+    a.set_xticks([0, durPreReinforcement])
+    a.set_xlim([-durBL,durPreReinforcement+durPost])
+    a.set_ylim([-0.5,1.5])
+    if i == 0:
+        a.set_ylabel('Trial #')
+        a.set_xlabel('Time from CS (s)')
+        a.set_title('Lick rasters')
+
 fig.tight_layout()
+plt.pause(0.1)
 
 #%%
 # RUN TRIALS ====================================================================
@@ -313,29 +366,21 @@ try:
         t = t[idxTrial]
         lick = lick[idxTrial]
         
-        lickSR = 200
-        tR = np.arange(-durBL,durPreReinforcement+durPost,1/lickSR)
+        # Extract lick timestamps
         lick_ts = (t - t[0] - durBL)[lick > 0]
         
+        # Binarized these timestamps
         lick4save = np.histogram(lick_ts,np.arange(-durBL-1/2/lickSR,durPreReinforcement+durPost+1/2/lickSR,1/lickSR))[0]
         
-        # Save
-        f = open('Data'+os.path.sep+an+os.path.sep+saveName+'_lickRaster.csv','a')
+        # Add to lick raster
+        lick_ras.iloc[N,:] = lick4save
         
-        # First line (trial 1) will be the time stamps of each column
-        if N == 0:
-            np.savetxt(f, tR.reshape(1, tR.shape[0]), fmt='%2.3f', delimiter = ',')
-            # f.write('\n')
-        
-        # Save licks for that trial aligned to tCS
-        np.savetxt(f, lick4save.reshape(1, lick4save.shape[0]), fmt='%2.3f', delimiter = ',')
-        # f.write('\n')
-
-        # Close file for saving licks
-        f.close()
+        # Save lick raster
+        lick_ras.to_csv('Data'+os.path.sep+an+os.path.sep+saveName+'_lickRaster.csv')
         
         # Trial info ------------------------------
-               
+        
+        # Calculate average licking for this trial
         avgLick = np.zeros(3)
 
         # Calculate baseline lick rates
@@ -350,29 +395,54 @@ try:
         idxPost = np.logical_and(t >= tUS, t <= tUS + durPost)
         avgLick[2] = np.sum(lick[idxPost])/durPost
         
-        trInfos4saveMTX = np.concatenate((trialTypeMTX[N,:],respMTX[N,:],avgLick))   
-        trInfos4saveMTX[2] = amountRewList[N] * rewarded # Change rewarded to amount
-        if trInfos4saveMTX[2] < 0: # If punishment make it -1
-            trInfos4saveMTX[2] = -1
+        trmtx_line = np.concatenate((trialTypeMTX[N,1:],respMTX[N,:],avgLick))  
+        trmtx_line[1] = amountRewList[N] * rewarded # Change rewarded to amount
+        if trmtx_line[1] < 0: # If punishment make it -1
+            trmtx_line[1] = -1
         
-        # Save trial info to trial matrix info file
-        f = open('Data'+os.path.sep+an+os.path.sep+saveName+'_trialMTX.csv', "a")
+        # Append this line to trial matrix
+        trmtx.iloc[N,:] = trmtx_line
         
-        # Case for 1st trial, save a table header
-        if N == 0:
-            lsHeader = np.concatenate((trialTypeMTXHeader,responseMTXHeader,['BL(-'+str(durBL)+') l/s','Anticipatory(tUS-CS) l/s','Consumatory(+'+str(durPost)+') l/s']))
-            np.savetxt(f,lsHeader.reshape(1, lsHeader.shape[0]),fmt='%s',delimiter = ',')
-            # f.write('\n')
+        # Save trial matrix
+        trmtx.to_csv('Data'+os.path.sep+an+os.path.sep+saveName+'_trialMTX.csv')
         
-        # Save trial infos
-        np.savetxt(f,trInfos4saveMTX.reshape(1, trInfos4saveMTX.shape[0]),fmt='%2.3f',delimiter = ',')
-        # f.write('\n')
-        f.close()
+        # ------- PLOT RESULTS ---------------------------------------------
         
-        # ------- PLOT RESULTS
+        # Note: It only updates the line for that trial type 'trType' (to save time!)
         
+        # #Plot anticipatory lick rate
+        x = np.arange(nTrials) + 1
+        # if np.sum(trmtx['tone_id'] == trType) > 0:
+        x = x[trmtx['tone_id'] == trType]
+        y = trmtx['anticip_lickrate'][trmtx['tone_id'] == trType]
+        avg_anticip[trType].set_data(x,y)
+        ax0.set_xlim([0,N+2])
         
-        #
+        # #Plot trial average lick rate
+        # if np.sum(trmtx['tone_id'] == trType) > 0:
+        l = lick_ras.loc[trmtx['tone_id'] == trType].to_numpy()
+        l *= lickSR
+        m_lick = np.nanmean(l,axis=0)
+        m_lick = np.convolve(m_lick, np.ones(20)/20, mode='same')
+        sessavg_lick[trType].set_data(tR,m_lick)
+        
+        # Update raster plot
+        l = lick_ras.loc[trmtx['tone_id'] == trType].to_numpy()
+        # Convert to event scatter
+        y=  np.ones_like(l) * np.nan
+        y[l > 0] = 1
+        y = (y.T * np.arange(l.shape[0])).T
+        y = y[y >= 0]
+        
+        x = np.ones_like(l) * np.nan
+        x[l > 0] = 1
+        x *= tR
+        x = x[~np.isnan(x)]
+        
+        lickrasplot[trType].set_offsets(np.array([x,y]).T)
+        ax1[trType].set_ylim([-0.5,np.max(y)+0.5])
+    
+        plt.pause(0.1)
         
         # End of trial, increment N ========
         # Display number of reward thus far
@@ -407,21 +477,10 @@ np.savetxt('Data'+os.path.sep+an+os.path.sep+saveName+'_ArdData.csv', ardData,
            delimiter=',',
            header=strHeader)
 
+# Save figure
+fig.savefig('Data'+os.path.sep+an+os.path.sep+saveName+'_fig.png')
+
 print('Data were saved properly!')
 
-# DISPLAY RESULTS ======================
-
-# fig, ax = plt.subplots(2,1)
-# ax[0].plot(ardData[:ardIdx+100,0],ardData[:ardIdx+100,1],color='b')
-# ax[0].plot(ardData[:ardIdx,0],ardData[:ardIdx,1])
-# ax[0].set_xlabel('Time (s)')
-# ax[0].set_ylabel('Lever (V)')
-
-# ax[1].plot(ardData[:ardIdx-1,0],np.diff(ardData[:ardIdx,0]))
-# ax[1].set_xlabel('Time (s)')
-# ax[1].set_ylabel('Delta time (s)')
-
-# plt.tight_layout()
-# plt.show()
 
 print('Done!')
