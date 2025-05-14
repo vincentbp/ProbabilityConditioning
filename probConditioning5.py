@@ -440,7 +440,9 @@ try:
         x = x[~np.isnan(x)]
         
         lickrasplot[trType].set_offsets(np.array([x,y]).T)
-        ax1[trType].set_ylim([-0.5,np.max(y)+0.5])
+        # print(len(l))
+        # if len(y) > 0:
+        ax1[trType].set_ylim([-0.5,len(l)+0.5])
     
         plt.pause(0.1)
         
