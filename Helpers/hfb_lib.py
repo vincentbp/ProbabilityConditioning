@@ -193,6 +193,34 @@ def randTrialsGNG(nTrials,toneSelect,fractNoGo,foreperiod,paramsLaser):
     trialTypeMTX = trialTypeMTX.transpose()
     return trialTypeMTX
 
+def randomize_laser(params):
+    
+    # Shuffle with 0 and 1. Every 10th trial.
+    to_shuffle = (np.arange(10) < np.round(params['laser']['fract_laseron']*10).astype(int)).astype(int)
+    rng = np.random.default_rng(25)
+    sequence = np.array([])
+    while len(sequence) < params['n_trials']:
+        rng.shuffle(to_shuffle)
+        sequence = np.r_[sequence,to_shuffle] if len(sequence) > 0 else to_shuffle
+
+    # Create a list of values
+    if params['laser']['timing'] == 'both':
+        values = ['cue','reinfo']
+    else:
+        values = [params['laser']['timing']]
+    values = values * len(sequence)
+    values = np.array(values)
+
+    # Create a sequence with 0 or timing
+    laser_sequence = np.zeros(len(sequence),dtype=object)
+    laser_sequence[sequence > 0] = values[:np.sum(sequence > 0)]
+    laser_sequence = laser_sequence[:params['n_trials']]
+    
+    # Turn off laser for n_omit
+    laser_sequence[:params['laser']['n_trial_omit']] = 0
+    
+    return laser_sequence
+
 def randTrialsPROB(nTrials,fractTone,probRew,probPun,distroITI):
     
     # nTrials = 1000
