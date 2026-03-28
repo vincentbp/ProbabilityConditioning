@@ -6,12 +6,14 @@ Created on Thu Jan 27 17:25:12 2022
 @author: vbp
 """
 
+# V3: with laser params
+
 import sys
 import os
 import json
 import Helpers.hfb_lib as hfb
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QLineEdit
+from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QLineEdit, QRadioButton, QButtonGroup
 from PyQt5.QtWidgets import QPushButton, QMessageBox
 from PyQt5.QtCore import QSize    
 from PyQt5.QtGui import QFont
@@ -38,16 +40,18 @@ params = {
     "durTotal": 1800, # Duration in sec of the whole session
     "durSound": 1.5, # in sec
    
-    # # Laser
-    # "laser": [0, 10, 0] ,# 1-fractLaser trials; 2-ntrial baseline (at the beginning of a session); 3- Type 0 = Arch/Jaws; 1=ChR2; 2=Arch during reinforcement
-    # "laserExp": ["Arch/Jaws","ChR2"],       
+    # Laser
+    "laser":{'fract_laseron':0, # between [0 and 1] in 0.1 increment
+             'timing':'both', # values can be 1-'cue' 2-'reinf' 3-'both'
+             'n_trial_omit': 5, # number of trial to omit at begining
+             },
     }  
     
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
 
-        self.setMinimumSize(QSize(360, 350))    
+        self.setMinimumSize(QSize(360, 410))    
         self.setWindowTitle("Edit conditioning parameters") 
         
         # AN ID
@@ -277,6 +281,59 @@ class MainWindow(QMainWindow):
         self.lineDurTotal.resize(60, 25)
         self.lineDurTotal.insert(str(params['durTotal']))
         
+        # Fraction laser
+        H += 30
+        self.labelFractLas = QLabel(self)
+        self.labelFractLas.setText('Fraction laser:')
+        self.labelFractLas.move(20, H)
+        
+        self.lineFractLas1 = QLineEdit(self)
+        self.lineFractLas1.move(120, H)
+        self.lineFractLas1.resize(40, 25)
+        self.lineFractLas1.insert(str(params['laser']['fract_laseron']))
+        
+        # N trial to omit laser
+        self.labelFractOmit = QLabel(self)
+        self.labelFractOmit.setText('N omit laser:')
+        self.labelFractOmit.move(200, H)
+        
+        self.lineFractOmit1 = QLineEdit(self)
+        self.lineFractOmit1.move(290, H)
+        self.lineFractOmit1.resize(40, 25)
+        self.lineFractOmit1.insert(str(params['laser']['n_trial_omit']))
+        
+        H+=30
+        posX = [120,40]
+        posX = [120,40]
+        self.labelMVT = QLabel(self)
+        self.labelMVT.setText('Timing opto:')
+        self.labelMVT.move(posX[0]-100, H)
+        
+        self.radioLaser3a = QRadioButton(self)
+        self.radioLaser3a.setText('Start')
+        self.radioLaser3a.setFont(QFont('Arial', 10))
+        self.radioLaser3a.setChecked(True)
+        self.radioLaser3a.move(posX[0],H)
+        
+        posX = [200,40]
+        self.radioLaser3b = QRadioButton(self)
+        self.radioLaser3b.setText('Release')
+        self.radioLaser3b.setFont(QFont('Arial', 10))
+        self.radioLaser3b.move(posX[0],H)
+        
+        posX = [280,40]
+        self.radioLaser3c = QRadioButton(self)
+        self.radioLaser3c.setText('Both')
+        self.radioLaser3c.setFont(QFont('Arial', 10))
+        self.radioLaser3c.move(posX[0],H)
+        
+        if params["laser"]["timing"] == 'start':
+            self.radioLaser3a.setChecked(True)
+        elif params["laser"]["timing"] == 'release':
+            self.radioLaser3b.setChecked(True)
+        else:
+            self.radioLaser3c.setChecked(True)
+        
 
         # Button to load parameters
         H += 30
@@ -312,6 +369,11 @@ class MainWindow(QMainWindow):
         if params == -1:
             return
         
+        if 'laser' not in params.keys(): # Patch so script works with older animals for which params were set with an old setParameters.py version (< v3)
+            params['laser'] = {'timing': 'both' , # can be 'cue' 'reinfo' or 'both'               
+                               'fract_laseron': 0,
+                               'n_trial_omit':5,}
+        
         # Update line text with loaded params
         self.lineNTrials.setText(str(params["nTrials"]))
         self.lineAmount.setText(str(params["amountReward"]))
@@ -333,6 +395,15 @@ class MainWindow(QMainWindow):
         self.lineDurTrial2.setText(str(params["durPreReinf"]))
         self.lineDurTrial3.setText(str(params["durConsumption"]))
         self.lineDurTotal.setText(str(params["durTotal"]))
+        self.lineFractLas1.setText(str(params['laser']['fract_laseron']))
+        self.lineFractOmit1.setText(str(params['laser']['n_trial_omit']))
+        
+        if params["laser"]["timing"] == 'cue':
+            self.radioLaser3a.setChecked(True)
+        elif params["laser"]["timing"] == 'reinfo':
+            self.radioLaser3b.setChecked(True)
+        else:
+            self.radioLaser3c.setChecked(True)
 
         print('Done!')
         
@@ -365,6 +436,13 @@ class MainWindow(QMainWindow):
                 print('Data were not saved: Amount reward should min: 0.1 and max: 20 uL!')
                 return
                     
+        # Define laser timing type from radio button
+        if self.radioLaser3a.isChecked():
+            laser_timing = 'cue'
+        if self.radioLaser3b.isChecked():
+            laser_timing = 'reinfo'
+        if self.radioLaser3c.isChecked():
+            laser_timing = 'both' 
         
         # Update paramas with GUI input
         params = {
@@ -379,6 +457,12 @@ class MainWindow(QMainWindow):
             "durPreReinf": float(self.lineDurTrial2.text()), # Includes sound duration
             "durConsumption": float(self.lineDurTrial3.text()), #Time after reward delivery
             "durTotal": float(self.lineDurTotal.text()) ,    # Duration in sec of the whole session   
+            
+            "laser":{
+                'fract_laseron': float(self.lineFractLas1.text()),
+                'n_trial_omit': int(self.lineFractOmit1.text()),
+                'timing':laser_timing,
+                }
             }
         
         # Check if folder 'Data' exists

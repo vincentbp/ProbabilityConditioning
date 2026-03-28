@@ -103,103 +103,13 @@ def volReward2duration(rewAmount,valveID):
     durValve = dur[idx] + (rewAmount - r[idx])/(r[idx+1] - r[idx])*(dur[idx+1] - dur[idx])
     return durValve
 
-def randTrialsGNG(nTrials,toneSelect,fractNoGo,foreperiod,paramsLaser):
-    # % function randTrialsGNG(nTrials,toneSelect,fractGo,foreperiod,paramsLaser)
-    # % % EXAMPLE:
-    # % nTrials = 301;
-    # % toneSelect = 4; %number of tone intensities per tone A or B
-    # % fractGo = 0.4; %fraction of go trials.
-    # % foreperiod = [0.65 0.2];
-    # % paramLaser = [0.25 10]; %fractLaser trials; ntrial baseline (at the beginning of a session)
-    # % % possible values for fractLaser: 0.5 0.4 1/3 0.3 1/4 0.2 0.1 0
-    trialId = np.arange(nTrials)
-    
-    # Randomize trial type
-    if round(fractNoGo*10) == 5:
-        nGo = 2
-        nNoGo = 2
-    else:
-        fract = sympy.nsimplify(round(fractNoGo*10)/10);
-        nNoGo = fract.numerator()
-        nGo = fract.denominator()-nNoGo
-    
-    a = np.array([0] * nNoGo + [1] * nGo)
-    idx = vbp.vecOfRandPerm(len(a), nTrials)
-    trialType = a[idx]
-    
-    # Randomize tone
-    a = np.arange(toneSelect) # NoGo
-    b = a+4 # Go
-    idx1 = vbp.vecOfRandPerm(len(a),nTrials)
-    idx2 = vbp.vecOfRandPerm(len(b),nTrials)
-    
-    X = np.block([a[idx1],b[idx2]])
-    X.shape = (2,len(idx1))
-    toneId = np.zeros(nTrials)
-    toneId[trialType == 0] = X[0,:sum(trialType==0)]
-    toneId[trialType == 1] = X[1,:sum(trialType==1)]
-
-    # Dur foreperiod
-    durFore = np.ones(nTrials)*-1
-    while any(durFore < 0):
-        idx = durFore < 0
-        N = sum(idx)
-        durFore[idx] = np.random.normal(foreperiod[0], foreperiod[1], N)
-    durFore = np.round(durFore, 2)
-
-    # Create sequence laser trial
-    if paramsLaser[0] > 0.5:
-        print('Warning: Fraction of laser trials cannot be more than 0.5; fractLaser adjusted back to 0.5')
-        a = [0, 1]
-    elif round(paramsLaser[0]*10) == 5:
-        a = [0, 1]
-    elif round(paramsLaser[0]*10) == 4:
-        a = [0, 1, 0, 1, 0,  1, 0, 0, 1, 0,  1, 0, 1, 0, 0,  0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1]
-    elif paramsLaser[0] == 1/3:
-        a = [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
-    elif paramsLaser[0] == 1/4:
-        a = [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1]
-    elif round(paramsLaser[0]*10) == 3: 
-        a = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1]
-    elif round(paramsLaser[0]*10) == 2:
-        a = [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0]
-    elif round(paramsLaser[0]*10) == 1:
-        a = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
-    else:
-        a = [0, 0, 0, 0]
-    idx = list(np.arange(len(a))) * int(np.ceil(nTrials/len(a)))
-    a = np.array(a)
-    laserIO = a[idx]
-    laserIO = laserIO[:nTrials]
-    # Set 1st trials paramLaser[1] to no laser excitation
-    if paramsLaser[1] >= 1:
-        laserIO[:round(paramsLaser[1])] = 0
-
-    # # Some checkups
-    # if np.size(trialId,1) == 1:
-    #     trialId = np.transpose(trialId)
-    # if np.size(trialType,1) == 1:
-    #     trialType = np.transpose(trialType)
-    # if np.size(toneId,1) == 1:
-    #     toneId = np.transpose(toneId)
-    # if np.size(durFore,1) == 1:
-    #     durFore = np.transpose(durFore)
-    # if np.size(laserIO,1) == 1:
-    #     laserIO = np.transpose(laserIO)
-    
-    # Concatenate in one array [TRIAL#; TRIALTYPE(0 no-go / 1 go); TONEID; durFOREPERIOD]
-    trialTypeMTX = np.block([trialId, trialType, toneId, durFore, laserIO])
-    trialTypeMTX.shape = (5,nTrials)
-    trialTypeMTX = trialTypeMTX.transpose()
-    return trialTypeMTX
-
 def randomize_laser(params):
     
     # Shuffle with 0 and 1. Every 10th trial.
     to_shuffle = (np.arange(10) < np.round(params['laser']['fract_laseron']*10).astype(int)).astype(int)
     rng = np.random.default_rng(25)
     sequence = np.array([])
-    while len(sequence) < params['n_trials']:
+    while len(sequence) < params['nTrials']:
         rng.shuffle(to_shuffle)
         sequence = np.r_[sequence,to_shuffle] if len(sequence) > 0 else to_shuffle
 
@@ -214,14 +124,14 @@ def randomize_laser(params):
     # Create a sequence with 0 or timing
     laser_sequence = np.zeros(len(sequence),dtype=object)
     laser_sequence[sequence > 0] = values[:np.sum(sequence > 0)]
-    laser_sequence = laser_sequence[:params['n_trials']]
+    laser_sequence = laser_sequence[:params['nTrials']]
     
     # Turn off laser for n_omit
     laser_sequence[:params['laser']['n_trial_omit']] = 0
     
     return laser_sequence
 
-def randTrialsPROB(nTrials,fractTone,probRew,probPun,distroITI):
+def randTrialsPROB(params):
     
     # nTrials = 1000
     # fractTone = [0.4, 0.4, 0.1, 0.1] # FractTone[3] = absence of tone
@@ -229,41 +139,40 @@ def randTrialsPROB(nTrials,fractTone,probRew,probPun,distroITI):
     # probPun = [0, 0, 0, 0.1]
     # distroITI = [10, 30]
     
-    # Determine trial id
-    trialID = np.arange(nTrials)
+    trialID = np.arange(params['nTrials'])
     
-    ##### RANDOMIZE TONE SELECTION #####
-    
+    ##### RANDOMIZE TONE SELECTION ##### 
     # Verify if sum of fractTone equal to 1
-    if sum(fractTone) != 1:
+    if sum(params['fractEachTone']) != 1:
         print('Sum of fractTone should == 1')
         sys.exit()
         
-    # Multiply fractTone by 10
-    fractTone = np.round(np.array(fractTone) * 10)
-    fractTone = np.concatenate((np.array([0]),fractTone))
-    fractTone = np.cumsum(fractTone)
+    # Multiply fractTone by 20
+    fractTone = np.round(np.array(params['fractEachTone']) * 20).astype(int)
     
-    # Randomize an array every 100 trials for N trials
-    idx = vbp.vecOfRandPerm(10,nTrials)
-    
+    # Create an array with these proportions to randomly choose every 20 trials
+    array_tone_select = []
+    for i in range(len(fractTone)):
+        for x in range(fractTone[i]):
+            array_tone_select.append(i)
+    array_tone_select = np.array(array_tone_select)
+     
+    # Randomize an array every 20 trials for N trials
+    idx = vbp.vecOfRandPerm(len(array_tone_select),params['nTrials'])
+     
     # Determine tone ID based on values of idx
-    toneID = np.zeros(idx.shape)
-    for i in range(len(fractTone)-1):
-        a = idx >= fractTone[i]
-        b = idx < fractTone[i+1]
-        toneID[a & b] = i
-        
+    toneID = array_tone_select[idx]
+         
     #### RANDOMIZE REWARD DELIVERY
     # Multiply probRew by 100
-    probRew = np.round(np.array(probRew) * 10)
-    probPun = np.round(np.array(probPun) * 10)
+    probRew = np.round(np.array(params['probRew']) * 10)
+    probPun = np.round(np.array(params['probPun']) * 10)
     
     # Randomize an an array every 100 trials for N trials
-    idx = vbp.vecOfRandPerm(10,nTrials)
+    idx = vbp.vecOfRandPerm(10,params['nTrials'])
     
     # Determine reward or not for each tone
-    rew = np.zeros(nTrials)
+    rew = np.zeros(params['nTrials'])
     for i in range(len(probRew)):
         idx = vbp.vecOfRandPerm(10,sum(toneID == i))
         x = np.zeros(len(idx))
@@ -277,20 +186,20 @@ def randTrialsPROB(nTrials,fractTone,probRew,probPun,distroITI):
     #### RANDOMIZE Inter Trial Interval (ITI) with an exponential distribution #######
     
     # Initialize durITI
-    durITI = np.zeros(nTrials) + distroITI[1]
+    durITI = np.zeros(params['nTrials']) + params['durITI'][1]
     
     # Randomize duration ITI. If randomization yield values higher than distroITI[1], randomize those values
-    while any(durITI >= distroITI[1]):
-        idx = durITI >= distroITI[1]
+    while any(durITI >= params['durITI'][1]):
+        idx = durITI >= params['durITI'][1]
         N = sum(idx)
-        durITI[idx] = np.random.exponential(distroITI[0],N)
+        durITI[idx] = np.random.exponential(params['durITI'][0],N)
     
     # Round
     durITI = np.round(durITI,decimals=2)
         
     # Concatenate in one MTX
     trialTypeMTX = np.block([trialID, toneID, rew, durITI])
-    trialTypeMTX.shape = (4,nTrials)
+    trialTypeMTX.shape = (4,params['nTrials'])
     trialTypeMTX = trialTypeMTX.transpose()
     
     trialTypeMTXHeader = ['Trial#','ToneID','Reward?','ITI Duration']

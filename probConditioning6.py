@@ -177,21 +177,25 @@ nSamples = estSamplingRate*estDur*60
 ardData = np.zeros((nSamples,7))*np.nan
 print('DONE!\n')
 
+#%%
+
 # Initialize response MTX
 responseMTXHeader = ['timeTrialStart','timeTone','timeReinforcement']
 respMTX = np.zeros((nTrials,3))*np.nan
 
 
 # Randomize trials and store them in trialTypeMTX
-trialTypeMTX,trialTypeMTXHeader = hfb.randTrialsPROB(nTrials,fractEachTone,probRew,probPun,durITI)
+trialTypeMTX,trialTypeMTXHeader = hfb.randTrialsPROB(params)
 
 # Randomize timing laser
-params['laser']['timing'] = 'both' # can be 'cue' 'reinfo' or 'both'
-params['laser']['fract_laseron'] = 0.5
+if 'laser' not in params.keys(): # Patch so script works with older animals for which params were set with an old setParameters.py version (< v3)
+    params['laser'] = {'timing': 'both' , # can be 'cue' 'reinfo' or 'both'               
+                       'fract_laseron': 0,
+                       'n_trial_omit':5,}
 laser_seq = hfb.randomize_laser(params)
 
 # Initialize trial matrix
-trmtx = pd.DataFrame(np.ones((nTrials,9))*np.nan,columns=['tone_id','reward','dur_iti','t_start','t_tone','t_reinf','bl_lickrate','anticip_lickrate','conso_lickrate'])
+trmtx = pd.DataFrame(np.ones((nTrials,10))*np.nan,columns=['tone_id','reward','dur_iti','t_start','t_tone','t_reinf','bl_lickrate','anticip_lickrate','conso_lickrate','laser'])
 
 # Initialize lick raster
 lickSR = 200
@@ -297,6 +301,7 @@ try:
         trType = int(trialTypeMTX[N,1])
         rewarded = trialTypeMTX[N,2]
         durITI = trialTypeMTX[N,3]
+        laser = laser_seq[N]
         
         # Display trial number & trial type
         print('Trial '+str(int(N+1))+':')
@@ -314,6 +319,10 @@ try:
         # Record arduino during ITI
         ardData, ardIdx = hfb.recMVT(ardIn,ardData,ardIdx,durITI,t0)
         
+        # Laser
+        if laser == 'cue':
+            hfb.writeArduino(ardIn,b'A')
+            print('LASER @ CUE!',flush=True)
         
         # CONDITIONED STIM (CS) =======================
         if trType < 3:
@@ -328,6 +337,10 @@ try:
         # PRE-REINFORCEMENT ==================      
         # Record arduino during pre-reinf
         ardData, ardIdx = hfb.recMVT(ardIn,ardData,ardIdx,durPreReinforcement,t0)
+        
+        if laser == 'reinfo':
+            hfb.writeArduino(ardIn,b'A')
+            print('LASER @ REINFO!',flush=True)
         
         # UNCONDITIONED STIMULUS (US) =======================
         respMTX[N,2] = time.perf_counter() - t0 # Timing US
@@ -409,7 +422,8 @@ try:
             trmtx_line[1] = -1
         
         # Append this line to trial matrix
-        trmtx.iloc[N,:] = trmtx_line
+        trmtx.iloc[N,:-1] = trmtx_line
+        trmtx.iloc[N,-1] = laser
         
         # Save trial matrix
         trmtx.to_csv('Data'+os.path.sep+an+os.path.sep+saveName+'_trialMTX.csv')
