@@ -391,7 +391,7 @@ try:
         lick_ts = (t - t[0] - durBL)[lick > 0]
         
         # Binarized these timestamps
-        lick4save = np.histogram(lick_ts,np.arange(-durBL-1/2/lickSR,durPreReinforcement+durPost+1/2/lickSR,1/lickSR))[0]
+        lick4save = np.histogram(lick_ts,np.r_[tR,tR[-1]+1/lickSR])[0]
         
         # Add to lick raster
         lick_ras.iloc[N,:] = lick4save

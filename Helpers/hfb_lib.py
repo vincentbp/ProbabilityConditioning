@@ -418,11 +418,11 @@ def readArduino(ardIn, t0=time.perf_counter()):
         d[0] = time.perf_counter()-t0
         
         # Random lever mvt
-        d[1] = np.random.rand(1)       
+        d[1] = np.random.rand(1)[0]       
         
         # Determine if lick or not based on lick rate and targeted sampling rate
-        d[2] = np.random.rand(1) < lickRate*sr
-        d[3] = np.random.rand(1) < lickRate*sr
+        d[2] = np.random.rand(1)[0] < lickRate*sr
+        d[3] = np.random.rand(1)[0] < lickRate*sr
         
         # Determine accelerometer
         d[4] = 0
